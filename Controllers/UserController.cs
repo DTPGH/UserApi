@@ -73,7 +73,7 @@ namespace UserApi.Controllers
                     }
                     break;
 
-                case "createdad":
+                case "createdat":
                     {
                         query = isDescending
                             ? query.OrderByDescending(u => u.CreatedAt)
@@ -250,9 +250,46 @@ namespace UserApi.Controllers
             await _context.SaveChangesAsync();
             return Ok(new ApiResponse<User>
             {
-               StatusCode = StatusCodes.Status200OK,
-               Message = "Cập nhật user thành công",
-               Content = user 
+                StatusCode = StatusCodes.Status200OK,
+                Message = "Cập nhật user thành công",
+                Content = user
+            });
+        }
+
+        // Xóa User bằng cách cập nhật Deleted thành true và cập nhật UpdatedAt.
+        [HttpPost("{id:int}")]
+        public async Task<ActionResult> DeleteUser(int id)
+        {
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u => u.Id == id && u.Deleted==false);
+
+            if(user == null)
+            {
+                return NotFound(new ApiResponse<object>
+                {
+                   StatusCode = StatusCodes.Status404NotFound,
+                   Message = "Không tìm thấy user cần xóa",
+                   Content = null 
+                });
+            }
+
+            user.Deleted = true;
+            user.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new ApiResponse<object>
+            {
+                StatusCode = StatusCodes.Status200OK,
+                Message = "Xóa mềm user thành công",
+                Content = new
+                {
+                    user.Id,
+                    user.Name,
+                    user.Email,
+                    user.Deleted,
+                    user.UpdatedAt
+                }
             });
         }
     }
