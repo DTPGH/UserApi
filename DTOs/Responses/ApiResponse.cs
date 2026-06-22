@@ -1,4 +1,4 @@
-namespace UserApi.DTOs;
+namespace UserApi.DTOs.Responses;
 public class ApiResponse<T>
 {
     public int StatusCode { get; set; }

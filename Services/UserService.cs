@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using UserApi.Data;
-using UserApi.DTOs;
+using UserApi.DTOs.Requests;
+using UserApi.DTOs.Responses;
 using UserApi.Models;
 using UserApi.Services.Interfaces;
 namespace UserApi.Services;
@@ -13,14 +14,32 @@ public class UserService : IUserService
         _context = context;
     }
 
-    public async Task<User?> GetUserByIdAsync(int id)
+    private static UserResponse MapToUserResponse(User user)
     {
-        return await _context.Users
-            .AsNoTracking()
-            .FirstOrDefaultAsync(u => u.Id == id && u.Deleted == false);
+        return new UserResponse
+        {
+            Id = user.Id,
+            Name = user.Name,
+            Email = user.Email,
+            Description = user.Description,
+            Age = user.Age
+        };
     }
 
-    public async Task<PageResult<User>> GetUsersAsync(UserQueryParameters parameters)
+    public async Task<UserResponse?> GetUserByIdAsync(int id)
+    {
+        var user = await _context.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == id && u.Deleted == false);
+
+        if (user == null)
+        {
+            return null;
+        }
+        return MapToUserResponse(user);
+    }
+
+    public async Task<PageResult<UserResponse>> GetUsersAsync(UserQueryParameters parameters)
     {
         // b1: lấy tất cả records có trong bảng users với Deleted = false
         var query = _context.Users
@@ -61,9 +80,17 @@ public class UserService : IUserService
         var users = await query
             .Skip((parameters.PageNumber - 1) * parameters.PageSize)
             .Take(parameters.PageSize)
+            .Select(u => new UserResponse
+            {
+                Id = u.Id,
+                Name = u.Name,
+                Email = u.Email,
+                Description = u.Description,
+                Age = u.Age
+            })
             .ToListAsync();
 
-        return new PageResult<User>
+        return new PageResult<UserResponse>
         {
             Items = users,
             PageNumber = parameters.PageNumber,
@@ -73,7 +100,7 @@ public class UserService : IUserService
         };
     }
 
-    public async Task<User> CreateUserAsync(CreateUserRequest request)
+    public async Task<UserResponse> CreateUserAsync(CreateUserRequest request)
     {
         var emailExists = await _context.Users
             .AnyAsync(u => u.Email == request.Email && u.Deleted == false);
@@ -95,10 +122,11 @@ public class UserService : IUserService
 
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
-        return user;
+
+        return MapToUserResponse(user);
     }
 
-    public async Task<User> UpdateUserAsync(int id, UpdateUserRequest request)
+    public async Task<UserResponse> UpdateUserAsync(int id, UpdateUserRequest request)
     {
         var user = await _context.Users
             .FirstOrDefaultAsync(u => u.Id == id && u.Deleted == false);
@@ -127,7 +155,7 @@ public class UserService : IUserService
         user.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
-        return user;
+        return MapToUserResponse(user);
     }
     public async Task SoftDeleteUserAsync(int id)
     {

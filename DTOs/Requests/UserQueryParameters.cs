@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace UserApi.DTOs;
+namespace UserApi.DTOs.Requests;
 
 public class UserQueryParameters
 {

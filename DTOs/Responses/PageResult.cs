@@ -1,4 +1,5 @@
-namespace UserApi.DTOs;
+namespace UserApi.DTOs.Responses;
+
 public class PageResult<T>
 {
     public int TotalItems { get; set; }

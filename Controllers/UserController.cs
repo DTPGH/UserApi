@@ -5,7 +5,8 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using UserApi.Data;
-using UserApi.DTOs;
+using UserApi.DTOs.Requests;
+using UserApi.DTOs.Responses;
 using UserApi.Models;
 using UserApi.Services;
 using UserApi.Services.Interfaces;
@@ -26,7 +27,7 @@ namespace UserApi.Controllers
         // GET: api/User
         //lấy danh sách trong bảng User: Có lọc Deleted, paging, sorting và searching hoạt động đúng.
         [HttpGet("")]
-        public async Task<ActionResult<ApiResponse<PageResult<User>>>> GetAll([FromQuery] UserQueryParameters queryParameters)
+        public async Task<ActionResult<ApiResponse<PageResult<UserResponse>>>> GetAll([FromQuery] UserQueryParameters queryParameters)
         {
 
             // // kiểm tra nếu pageNumber nhỏ hơn 1 thì trả về lỗi
@@ -57,7 +58,7 @@ namespace UserApi.Controllers
                 ? "Không tìm thấy user phù hợp"
                 : "Lấy danh sách users thành công";
 
-            var response = new ApiResponse<PageResult<User>>
+            var response = new ApiResponse<PageResult<UserResponse>>
             {
                 StatusCode = StatusCodes.Status200OK,
                 Message = message,
@@ -68,7 +69,7 @@ namespace UserApi.Controllers
 
         // Lấy thông tin user chi tiết theo Id. Nếu không tìm thấy hoặc User đã bị xóa mềm thì trả về thông báo lỗi rõ ràng.
         [HttpGet("{id:int}")]
-        public async Task<ActionResult<ApiResponse<User>>> GetUserById(int id)
+        public async Task<ActionResult<ApiResponse<UserResponse>>> GetUserById(int id)
         {
             var user = await _userService.GetUserByIdAsync(id);
 
@@ -84,7 +85,7 @@ namespace UserApi.Controllers
                 );
             }
 
-            return Ok(new ApiResponse<User>
+            return Ok(new ApiResponse<UserResponse>
             {
                 StatusCode = StatusCodes.Status200OK,
                 Message = "Get detail information user by id successfully",
@@ -96,7 +97,7 @@ namespace UserApi.Controllers
         // POST: api/use
         // THêm mới user
         [HttpPost]
-        public async Task<ActionResult<ApiResponse<User>>> CreateUser([FromBody] CreateUserRequest request)
+        public async Task<ActionResult<ApiResponse<UserResponse>>> CreateUser([FromBody] CreateUserRequest request)
         {
             try
             {
@@ -104,7 +105,7 @@ namespace UserApi.Controllers
                 return CreatedAtAction(
                     nameof(GetUserById),
                     new { id = user.Id },
-                    new ApiResponse<User>
+                    new ApiResponse<UserResponse>
                     {
                         StatusCode = StatusCodes.Status201Created,
                         Message = "Tạo user mới thành công",
@@ -126,7 +127,7 @@ namespace UserApi.Controllers
         // PUT: api/user/1
         // Cập nhật user theo id 
         [HttpPut("{id:int}")]
-        public async Task<ActionResult<ApiResponse<User>>> UpdateUser(
+        public async Task<ActionResult<ApiResponse<UserResponse>>> UpdateUser(
             [FromRoute] int id,
             [FromBody] UpdateUserRequest request)
         {
@@ -134,7 +135,7 @@ namespace UserApi.Controllers
             {
                 var user = await _userService.UpdateUserAsync(id, request);
 
-                return Ok(new ApiResponse<User>
+                return Ok(new ApiResponse<UserResponse>
                 {
                     StatusCode = StatusCodes.Status200OK,
                     Message = "Cập nhật user thành công",
@@ -143,7 +144,7 @@ namespace UserApi.Controllers
             }
             catch (KeyNotFoundException ex)
             {
-                return NotFound(new ApiResponse<User>
+                return NotFound(new ApiResponse<UserResponse>
                 {
                     StatusCode = StatusCodes.Status404NotFound,
                     Message = ex.Message
@@ -151,7 +152,7 @@ namespace UserApi.Controllers
             }
             catch (InvalidOperationException ex)
             {
-                return BadRequest(new ApiResponse<User>
+                return BadRequest(new ApiResponse<UserResponse>
                 {
                     StatusCode = StatusCodes.Status400BadRequest,
                     Message = ex.Message
@@ -160,7 +161,7 @@ namespace UserApi.Controllers
         }
 
         // Xóa User bằng cách cập nhật Deleted thành true và cập nhật UpdatedAt.
-        [HttpPost("{id:int}")]
+        [HttpDelete("{id:int}")]
         public async Task<ActionResult> DeleteUser(int id)
         {
             try
