@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using UserApi.Common;
 using UserApi.Data;
 using UserApi.DTOs.Requests;
 using UserApi.DTOs.Responses;
@@ -29,40 +30,21 @@ namespace UserApi.Controllers
         [HttpGet("")]
         public async Task<ActionResult<ApiResponse<PageResult<UserResponse>>>> GetAll([FromQuery] UserQueryParameters queryParameters)
         {
-
-            // // kiểm tra nếu pageNumber nhỏ hơn 1 thì trả về lỗi
-            // if (queryParameters.PageNumber < 1)
-            // {
-            //     return BadRequest(new ApiResponse<string>
-            //     {
-            //         StatusCode = StatusCodes.Status400BadRequest,
-            //         Message = "Page number must be greater than 0",
-            //         Content = null
-            //     });
-            // }
-
-            // // Giới hạn pageSize để tránh lấy quá nhiều dữ liệu.
-            // if (queryParameters.PageSize < 1 || queryParameters.PageSize > 100)
-            // {
-            //     return BadRequest(new ApiResponse<string>
-            //     {
-            //         StatusCode = StatusCodes.Status400BadRequest,
-            //         Message = "Page size must be between 1 and 100",
-            //         Content = null
-            //     });
-            // }
-
             var pageResult = await _userService.GetUsersAsync(queryParameters);
-
-            var message = pageResult.TotalItems == 0
-                ? "Không tìm thấy user phù hợp"
-                : "Lấy danh sách users thành công";
+            if (pageResult.Success == false || pageResult.Data is null)
+            {
+                return BadRequest(new ApiResponse<PageResult<UserResponse>>
+                {
+                    StatusCode = StatusCodes.Status400BadRequest,
+                    Message = pageResult.Message
+                });
+            }
 
             var response = new ApiResponse<PageResult<UserResponse>>
             {
                 StatusCode = StatusCodes.Status200OK,
-                Message = message,
-                Content = pageResult
+                Message = pageResult.Message,
+                Content = pageResult.Data
             };
             return Ok(response);
         }
@@ -73,23 +55,29 @@ namespace UserApi.Controllers
         {
             var user = await _userService.GetUserByIdAsync(id);
 
-            if (user == null)
+            if (user.Success == false || user.Data == null)
             {
-                return NotFound(
-                    new ApiResponse<User>
+                if (user.ErrorType == ServiceErrorType.NotFound)
+                {
+                    return NotFound(
+                    new ApiResponse<UserResponse>
                     {
                         StatusCode = StatusCodes.Status404NotFound,
-                        Message = $"Not found a user with id: {id} in database ",
-                        Content = null
-                    }
-                );
+                        Message = user.Message
+                    });
+                }
+                return BadRequest(new ApiResponse<UserResponse>
+                {
+                    StatusCode = StatusCodes.Status400BadRequest,
+                    Message = user.Message,
+                });
             }
 
             return Ok(new ApiResponse<UserResponse>
             {
                 StatusCode = StatusCodes.Status200OK,
-                Message = "Get detail information user by id successfully",
-                Content = user
+                Message = user.Message,
+                Content = user.Data
             });
 
         }
@@ -99,29 +87,28 @@ namespace UserApi.Controllers
         [HttpPost]
         public async Task<ActionResult<ApiResponse<UserResponse>>> CreateUser([FromBody] CreateUserRequest request)
         {
-            try
+
+            var user = await _userService.CreateUserAsync(request);
+            if (user.Success == false || user.Data is null)
             {
-                var user = await _userService.CreateUserAsync(request);
-                return CreatedAtAction(
-                    nameof(GetUserById),
-                    new { id = user.Id },
-                    new ApiResponse<UserResponse>
-                    {
-                        StatusCode = StatusCodes.Status201Created,
-                        Message = "Tạo user mới thành công",
-                        Content = user
-                    }
-                );
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new ApiResponse<User>
+                return Conflict(new ApiResponse<UserResponse>
                 {
-                    StatusCode = StatusCodes.Status400BadRequest,
-                    Message = ex.Message,
-                    Content = null
+                    StatusCode = StatusCodes.Status409Conflict,
+                    Message = user.Message
                 });
             }
+
+            return CreatedAtAction(
+                nameof(GetUserById),
+                new { id = user.Data.Id },
+                new ApiResponse<UserResponse>
+                {
+                    StatusCode = StatusCodes.Status201Created,
+                    Message = user.Message,
+                    Content = user.Data
+                }
+            );
+
         }
 
         // PUT: api/user/1
@@ -131,57 +118,72 @@ namespace UserApi.Controllers
             [FromRoute] int id,
             [FromBody] UpdateUserRequest request)
         {
-            try
-            {
-                var user = await _userService.UpdateUserAsync(id, request);
 
-                return Ok(new ApiResponse<UserResponse>
-                {
-                    StatusCode = StatusCodes.Status200OK,
-                    Message = "Cập nhật user thành công",
-                    Content = user
-                });
-            }
-            catch (KeyNotFoundException ex)
+            var user = await _userService.UpdateUserAsync(id, request);
+
+            if (user.Success == false || user.Data is null)
             {
-                return NotFound(new ApiResponse<UserResponse>
+                if (user.ErrorType == ServiceErrorType.NotFound)
                 {
-                    StatusCode = StatusCodes.Status404NotFound,
-                    Message = ex.Message
-                });
-            }
-            catch (InvalidOperationException ex)
-            {
+                    return NotFound(new ApiResponse<UserResponse>
+                    {
+                        StatusCode = StatusCodes.Status404NotFound,
+                        Message = user.Message
+                    });
+                }
+
+                if (user.ErrorType == ServiceErrorType.Conflict)
+                {
+                    return Conflict(new ApiResponse<UserResponse>
+                    {
+                        StatusCode = StatusCodes.Status409Conflict,
+                        Message = user.Message
+                    });
+                }
+
                 return BadRequest(new ApiResponse<UserResponse>
                 {
                     StatusCode = StatusCodes.Status400BadRequest,
-                    Message = ex.Message
+                    Message = user.Message
                 });
             }
+
+            return Ok(new ApiResponse<UserResponse>
+            {
+                StatusCode = StatusCodes.Status200OK,
+                Message = user.Message,
+                Content = user.Data
+            });
         }
 
         // Xóa User bằng cách cập nhật Deleted thành true và cập nhật UpdatedAt.
         [HttpDelete("{id:int}")]
         public async Task<ActionResult> DeleteUser(int id)
         {
-            try
-            {
-                await _userService.SoftDeleteUserAsync(id);
-                return Ok(new ApiResponse<object>
-                {
-                    StatusCode = StatusCodes.Status200OK,
-                    Message = "Xóa mềm user thành công",
-                });
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new ApiResponse<object>
-                {
-                    StatusCode = StatusCodes.Status404NotFound,
-                    Message = ex.Message
-                });
-            }
 
+            var result = await _userService.SoftDeleteUserAsync(id);
+            if (result.Success == false)
+            {
+                if (result.ErrorType == ServiceErrorType.NotFound)
+                {
+                    return NotFound(new ApiResponse<UserResponse>
+                    {
+                        StatusCode = StatusCodes.Status404NotFound,
+                        Message = result.Message
+                    });
+                }
+
+                return BadRequest(new ApiResponse<UserResponse>
+                {
+                    StatusCode = StatusCodes.Status400BadRequest,
+                    Message = result.Message
+                });
+            }
+            return Ok(new ApiResponse<object>
+            {
+                StatusCode = StatusCodes.Status200OK,
+                Message = result.Message
+            });
         }
     }
 }

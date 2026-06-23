@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using UserApi.Common;
 using UserApi.Data;
 using UserApi.DTOs.Requests;
 using UserApi.DTOs.Responses;
@@ -26,7 +27,7 @@ public class UserService : IUserService
         };
     }
 
-    public async Task<UserResponse?> GetUserByIdAsync(int id)
+    public async Task<ServiceResult<UserResponse>> GetUserByIdAsync(int id)
     {
         var user = await _context.Users
             .AsNoTracking()
@@ -34,17 +35,28 @@ public class UserService : IUserService
 
         if (user == null)
         {
-            return null;
+            return ServiceResult<UserResponse>.Fail(
+                $"Không tìm thấy người dùng với id: {id} ",
+                ServiceErrorType.NotFound
+            );
+
         }
-        return MapToUserResponse(user);
+
+        var response = MapToUserResponse(user);
+
+        return ServiceResult<UserResponse>.Ok(
+            response,
+            "Lấy thông tin user thành công"
+        );
     }
 
-    public async Task<PageResult<UserResponse>> GetUsersAsync(UserQueryParameters parameters)
+    public async Task<ServiceResult<PageResult<UserResponse>>> GetUsersAsync(UserQueryParameters parameters)
     {
         // b1: lấy tất cả records có trong bảng users với Deleted = false
         var query = _context.Users
             .AsNoTracking()
-            .Where(u => u.Deleted == false);
+            .Where(u => u.Deleted == false)
+            .AsQueryable();
 
         // b2: áp dụng tìm kiếm theo tên nếu có, ngược lại trống hoặc khoảng trắng thì lấy tất cả
         if (string.IsNullOrWhiteSpace(parameters.SearchTerm) == false)
@@ -90,7 +102,7 @@ public class UserService : IUserService
             })
             .ToListAsync();
 
-        return new PageResult<UserResponse>
+        var result = new PageResult<UserResponse>
         {
             Items = users,
             PageNumber = parameters.PageNumber,
@@ -98,16 +110,24 @@ public class UserService : IUserService
             TotalItems = totalItem,
             TotalPages = (int)Math.Ceiling((double)totalItem / parameters.PageSize)
         };
+
+        return ServiceResult<PageResult<UserResponse>>.Ok(
+            result,
+            "Lấy danh sách user thành công"
+        );
     }
 
-    public async Task<UserResponse> CreateUserAsync(CreateUserRequest request)
+    public async Task<ServiceResult<UserResponse>> CreateUserAsync(CreateUserRequest request)
     {
         var emailExists = await _context.Users
             .AnyAsync(u => u.Email == request.Email && u.Deleted == false);
 
         if (emailExists)
         {
-            throw new InvalidOperationException("Email đã tồn tại");
+            return ServiceResult<UserResponse>.Fail(
+                "Email đã tồn tại",
+                ServiceErrorType.Conflict
+            );
         }
 
         var user = new User
@@ -123,17 +143,25 @@ public class UserService : IUserService
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
-        return MapToUserResponse(user);
+        var response = MapToUserResponse(user);
+
+        return ServiceResult<UserResponse>.Ok(
+            response,
+            "Tạo user mới thành công"
+        );
     }
 
-    public async Task<UserResponse> UpdateUserAsync(int id, UpdateUserRequest request)
+    public async Task<ServiceResult<UserResponse>> UpdateUserAsync(int id, UpdateUserRequest request)
     {
         var user = await _context.Users
             .FirstOrDefaultAsync(u => u.Id == id && u.Deleted == false);
 
         if (user == null)
         {
-            throw new KeyNotFoundException($"không tìm thấy user với id: {id}.");
+            return ServiceResult<UserResponse>.Fail(
+                $"Không tìm thấy user với id: {id}",
+                ServiceErrorType.NotFound
+            );
         }
 
         var emailExists = await _context.Users
@@ -145,7 +173,10 @@ public class UserService : IUserService
 
         if (emailExists)
         {
-            throw new InvalidOperationException("Email đã tồn tại");
+            return ServiceResult<UserResponse>.Fail(
+                "Email đã tồn tại",
+                ServiceErrorType.Conflict
+            );
         }
 
         user.Name = request.Name;
@@ -155,20 +186,33 @@ public class UserService : IUserService
         user.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
-        return MapToUserResponse(user);
+
+        var response = MapToUserResponse(user);
+
+        return ServiceResult<UserResponse>.Ok(
+            response,
+            "Cập nhật user thành công"
+        );
     }
-    public async Task SoftDeleteUserAsync(int id)
+    public async Task<ServiceResult<object>> SoftDeleteUserAsync(int id)
     {
         var user = await _context.Users
             .FirstOrDefaultAsync(u => u.Id == id && u.Deleted == false);
 
         if (user == null)
         {
-            throw new KeyNotFoundException($"Không tìm thấy user với id:{id}.");
+            return ServiceResult<object>.Fail(
+                $"Không tìm thấy user với id: {id}",
+                ServiceErrorType.NotFound
+            );
         }
 
         user.Deleted = true;
         user.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
+        return ServiceResult<object>.Ok(
+            null!,
+            "Xóa user thành công"
+        );
     }
 }
