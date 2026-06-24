@@ -25,6 +25,12 @@ namespace UserApi.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            // Cập nhật trường thuộc tính Email không được trùng nhau
+            modelBuilder.Entity<User>()
+                .HasIndex(u => u.Email)
+                .IsUnique();
+
             UserSeedData.Seed(modelBuilder);
         }
     }
