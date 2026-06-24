@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using UserApi.DTOs.Responses;
+using UserApi.Middlewares;
 using UserApi.Models;
 using UserApi.Services;
 using UserApi.Services.Interfaces;
@@ -60,6 +61,9 @@ builder.Services.AddScoped<IUserService, UserService>();
 
 var app = builder.Build();
 
+// Global Exception Handling Middleware xử lý lỗi ngoài dự kiến như database lỗi,...-> trả mess lỗi chung chung cho client 
+app.UseMiddleware<GlobalExceptionMiddleware>();
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -73,6 +77,10 @@ if (app.Environment.IsDevelopment())
     );
     app.MapOpenApi();
 }
+
+app.UseHttpsRedirection();
+
+app.UseAuthorization();
 
 app.MapControllers();
 
