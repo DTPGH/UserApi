@@ -135,9 +135,9 @@ public class UserService : IUserService
             Name = request.Name,
             Email = request.Email,
             Age = request.Age,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
-            Deleted = false
+            // CreatedAt = DateTime.UtcNow,
+            // UpdatedAt = DateTime.UtcNow,
+            // Deleted = false
         };
 
         _context.Users.Add(user);
@@ -183,7 +183,7 @@ public class UserService : IUserService
         user.Email = request.Email;
         user.Description = request.Description;
         user.Age = request.Age;
-        user.UpdatedAt = DateTime.UtcNow;
+        // user.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
 
@@ -208,7 +208,7 @@ public class UserService : IUserService
         }
 
         user.Deleted = true;
-        user.UpdatedAt = DateTime.UtcNow;
+        // user.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
         return ServiceResult<object>.Ok(
             null!,

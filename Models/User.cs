@@ -1,12 +1,13 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
+using UserApi.Models.Common;
 
 namespace UserApi.Models;
 
 [Table("Users")]
 [Index(nameof(Email), IsUnique = true)]
-public class User
+public class User : BaseEntity
 {
     // Primary key auto-increment
     [Key]
@@ -33,12 +34,4 @@ public class User
     // trường tuổi có giá trị số phù hợp với tuổi người dùng
     [Range(0, 120)]
     public int Age { get; set; }
-
-    // ngày tạo
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    // ngày cập nhật
-    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-
-    // xóa mềm
-    public bool Deleted { get; set; } = false;
 }

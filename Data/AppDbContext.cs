@@ -2,6 +2,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using UserApi.Models;
+using UserApi.Models.Common;
 
 
 namespace UserApi.Data
@@ -32,6 +33,28 @@ namespace UserApi.Data
                 .IsUnique();
 
             UserSeedData.Seed(modelBuilder);
+        }
+
+        public override Task<int> SaveChangesAsync(
+            CancellationToken cancellationToken = default)
+        {
+            var entries = ChangeTracker
+                .Entries<BaseEntity>();
+
+            foreach (var entry in entries)
+            {
+                if (entry.State == EntityState.Added)
+                {
+                    entry.Entity.CreatedAt = DateTime.UtcNow;
+                    entry.Entity.UpdatedAt = DateTime.UtcNow;
+                    entry.Entity.Deleted = false;
+                }
+                if (entry.State == EntityState.Modified)
+                {
+                    entry.Entity.UpdatedAt = DateTime.UtcNow;
+                }
+            }
+            return base.SaveChangesAsync(cancellationToken);
         }
     }
 }
