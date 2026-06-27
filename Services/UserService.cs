@@ -10,9 +10,11 @@ namespace UserApi.Services;
 public class UserService : IUserService
 {
     private readonly AppDbContext _context;
-    public UserService(AppDbContext context)
+    private readonly ILogger<UserService> _logger;
+    public UserService(AppDbContext context, ILogger<UserService> logger)
     {
         _context = context;
+        _logger = logger;
     }
 
     private static UserResponse MapToUserResponse(User user)
@@ -124,6 +126,8 @@ public class UserService : IUserService
 
         if (emailExists)
         {
+            // ghi lại log theo hành động nghiệp vụ, thao tác bị từ chối do lỗi email trùng
+            _logger.LogWarning("Create user rejected because email already exists");
             return ServiceResult<UserResponse>.Fail(
                 "Email đã tồn tại",
                 ServiceErrorType.Conflict
@@ -143,6 +147,10 @@ public class UserService : IUserService
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
+        _logger.LogInformation(
+            "create user {UserId}", user.Id
+        );
+
         var response = MapToUserResponse(user);
 
         return ServiceResult<UserResponse>.Ok(
@@ -158,6 +166,8 @@ public class UserService : IUserService
 
         if (user == null)
         {
+            // ghi lại log theo hành động nghiệp vụ, thao tác bị từ chối do không tìm thấy người dùng
+            _logger.LogWarning("Update user rejected because user don't exist");
             return ServiceResult<UserResponse>.Fail(
                 $"Không tìm thấy user với id: {id}",
                 ServiceErrorType.NotFound
@@ -173,6 +183,8 @@ public class UserService : IUserService
 
         if (emailExists)
         {
+            // ghi lại log theo hành động nghiệp vụ, thao tác bị từ chối do lỗi email trùng
+            _logger.LogWarning("Create user rejected because email already exists");
             return ServiceResult<UserResponse>.Fail(
                 "Email đã tồn tại",
                 ServiceErrorType.Conflict
@@ -186,6 +198,8 @@ public class UserService : IUserService
         // user.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Updated user {UserId}", user.Id);
 
         var response = MapToUserResponse(user);
 
@@ -201,6 +215,7 @@ public class UserService : IUserService
 
         if (user == null)
         {
+            _logger.LogWarning("Update user rejected because user don't exist");
             return ServiceResult<object>.Fail(
                 $"Không tìm thấy user với id: {id}",
                 ServiceErrorType.NotFound
@@ -210,6 +225,9 @@ public class UserService : IUserService
         user.Deleted = true;
         // user.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Soft deleted user {UserId}", user.Id);
+
         return ServiceResult<object>.Ok(
             null!,
             "Xóa user thành công"
