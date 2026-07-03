@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using UserApi.Common;
@@ -16,8 +17,9 @@ using UserApi.Services.Interfaces;
 
 namespace UserApi.Controllers
 {
-    [Route("api/[controller]")]
+    [Authorize]
     [ApiController]
+    [Route("api/[controller]")]
     public class UserController : ControllerBase
     {
         private readonly IUserService _userService;
@@ -90,6 +92,7 @@ namespace UserApi.Controllers
 
         // Xóa User bằng cách cập nhật Deleted thành true và cập nhật UpdatedAt.
         [HttpDelete("{id:int}")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<ApiResponse<object>>> DeleteUser(int id)
         {
 
@@ -97,4 +100,4 @@ namespace UserApi.Controllers
             return this.ToActionResult(result);
         }
     }
-}
+} 

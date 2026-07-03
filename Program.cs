@@ -1,5 +1,9 @@
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
 using UserApi.DTOs.Responses;
 using UserApi.Middlewares;
 using UserApi.Models;
@@ -47,6 +51,22 @@ builder.Services.AddSwaggerGen(options =>
         Version = "v1",
         Description = "A simple example ASP.NET Core Web API for managing users",
     });
+
+    // Add JWT Authentication to Swagger
+    options.AddSecurityDefinition("bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = JwtBearerDefaults.AuthenticationScheme,
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Nhập JWT token theo format: bearer {your token}",
+    });
+
+    options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecuritySchemeReference("bearer", document)] = []
+    });
 }
 );
 
@@ -58,6 +78,41 @@ builder.Services.AddDbContext<UserApi.Data.AppDbContext>(
 
 // DI UserService
 builder.Services.AddScoped<IUserService, UserService>();
+
+// DI jwt authentication/authorization
+var jwtSetting = builder.Configuration.GetSection("Jwt");
+var secretKey = jwtSetting["SecretKey"]
+    ?? throw new InvalidOperationException("Jwt SecretKey is missing");
+
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwtSetting["Issuer"],
+
+            ValidateAudience = true,
+            ValidAudience = jwtSetting["Audience"],
+
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(secretKey)
+            ),
+
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero
+        };
+    });
+
+builder.Services.AddAuthorization();
+
+// DI JwtTokenService
+builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
+
+// DI AuthService
+builder.Services.AddScoped<IAuthService, AuthService>();
 
 var app = builder.Build();
 
@@ -80,6 +135,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

@@ -34,4 +34,16 @@ public class User : BaseEntity
     // trường tuổi có giá trị số phù hợp với tuổi người dùng
     [Range(0, 120)]
     public int Age { get; set; }
+
+    // thêm field phục vụ cho đăng nhập
+    [Required]
+    [Column(TypeName = "nvarchar(255)")]
+    public string PasswordHash { get; set; } = string.Empty;
+
+    [Required]
+    [Column(TypeName = "nvarchar(255)")]
+    public string Role { get; set; } = "User"; // Default role is "User"
+
+    
+    
 }

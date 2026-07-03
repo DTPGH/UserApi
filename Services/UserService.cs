@@ -184,7 +184,7 @@ public class UserService : IUserService
         if (emailExists)
         {
             // ghi lại log theo hành động nghiệp vụ, thao tác bị từ chối do lỗi email trùng
-            _logger.LogWarning("Create user rejected because email already exists");
+            _logger.LogWarning("Update user rejected because email already exists");
             return ServiceResult<UserResponse>.Fail(
                 "Email đã tồn tại",
                 ServiceErrorType.Conflict
