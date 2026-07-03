@@ -64,4 +64,24 @@ public class AuthController : ControllerBase
         var result = await _authService.RefreshTokenAsync(request);
         return this.ToActionResult(result);
     }
+
+    [HttpPost("logout")]
+    [Authorize]
+    public async Task<ActionResult<ApiResponse<bool>>> Logout()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (int.TryParse(userIdClaim, out var userId) == false)
+        {
+            return Unauthorized(new ApiResponse<bool>
+            {
+                StatusCode = StatusCodes.Status401Unauthorized,
+                Message = "Token không hợp lệ"
+            });
+        }
+
+        var result = await _authService.LogoutAsync(userId);
+        return this.ToActionResult(result);
+    }
+
 }

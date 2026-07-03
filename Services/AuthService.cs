@@ -219,4 +219,29 @@ public class AuthService : IAuthService
         );
 
     }
+
+    public async Task<ServiceResult<bool>> LogoutAsync(int userId)
+    {
+        var user = await _context.Users
+            .FirstOrDefaultAsync(u => u.Id == userId && u.Deleted == false);
+
+        if (user == null)
+        {
+            return ServiceResult<bool>.Fail(
+                "Không tìm thấy người dùng hiện tại", ServiceErrorType.NotFound
+            );
+        }
+
+        user.RefreshToken = null;
+        user.RefreshTokenExpiresAt = null;
+
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("User {UserId} logged out", user.Id);
+
+        return ServiceResult<bool>.Ok(
+            true,
+            "Đăng xuất thành công"
+        );
+    }
 }

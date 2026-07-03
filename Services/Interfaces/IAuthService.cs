@@ -10,4 +10,5 @@ public interface IAuthService
     Task<ServiceResult<AuthResponse>> LoginAsync(LoginRequest request);
     Task<ServiceResult<UserResponse>> GetCurrentUserAsync(int userId);
     Task<ServiceResult<AuthResponse>> RefreshTokenAsync(RefreshTokenRequest request);
+    Task<ServiceResult<bool>> LogoutAsync(int userId);
 }
