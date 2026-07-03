@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Reflection.Metadata;
 using Microsoft.EntityFrameworkCore;
 using UserApi.Models.Common;
 
@@ -44,6 +45,9 @@ public class User : BaseEntity
     [Column(TypeName = "nvarchar(255)")]
     public string Role { get; set; } = "User"; // Default role is "User"
 
-    
-    
+    // Tạm thời lưu trường refreshtoken vào bảng user
+    [Column(TypeName = "nvarchar(255)")]
+    public string? RefreshToken { get; set; }
+    public DateTime? RefreshTokenExpiresAt { get; set; }
+
 }

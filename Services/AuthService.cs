@@ -15,15 +15,19 @@ public class AuthService : IAuthService
     private readonly IJwtTokenService _jwtTokenService;
     private readonly ILogger<AuthService> _logger;
 
+    private readonly IConfiguration _configuration;
+
     public AuthService(
         AppDbContext context,
         IJwtTokenService jwtTokenService,
-        ILogger<AuthService> logger
+        ILogger<AuthService> logger,
+        IConfiguration configuration
     )
     {
         _context = context;
         _jwtTokenService = jwtTokenService;
         _logger = logger;
+        _configuration = configuration;
     }
 
     private static UserResponse MapToUserResponse(User user)
@@ -63,18 +67,28 @@ public class AuthService : IAuthService
         var passwordHasher = new PasswordHasher<User>();
         user.PasswordHash = passwordHasher.HashPassword(user, request.Password);
 
+        var refreshToken = _jwtTokenService.GenerateRefreshToken();
+        var refreshTokenExpiresAt = DateTime.UtcNow.AddDays(
+            int.Parse(_configuration["Jwt:RefreshTokenExpiresInDays"] ?? "7")
+        );
+
+        user.RefreshToken = refreshToken;
+        user.RefreshTokenExpiresAt = refreshTokenExpiresAt;
+
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
-        var token = _jwtTokenService.GenerateAccessToken(user, out var expiresAt);
+        var accessToken = _jwtTokenService.GenerateAccessToken(user, out var accessTokenExpiresAt);
 
         _logger.LogInformation("Registerd new user {UserId}", user.Id);
 
         return ServiceResult<AuthResponse>.Ok(
             new AuthResponse
             {
-                AccessToken = token,
-                ExpiresAt = expiresAt,
+                AccessToken = accessToken,
+                AccessTokenExpiresAt = accessTokenExpiresAt,
+                RefreshToken = refreshToken,
+                RefreshTokenExpiresAt = refreshTokenExpiresAt,
                 User = MapToUserResponse(user)
             },
 
@@ -95,15 +109,42 @@ public class AuthService : IAuthService
             );
         }
 
-        var token = _jwtTokenService.GenerateAccessToken(user, out var expiresAt);
+        var passwordHasher = new PasswordHasher<User>();
+        var verifyResult = passwordHasher.VerifyHashedPassword(
+            user,
+            user.PasswordHash,
+            request.Password
+        );
+
+        if (verifyResult == PasswordVerificationResult.Failed)
+        {
+            return ServiceResult<AuthResponse>.Fail(
+                "Email hoặc mật khẩu không chính xác",
+                ServiceErrorType.BadRequest
+            );
+        }
+
+        var refreshToken = _jwtTokenService.GenerateRefreshToken();
+        var refreshTokenExpiresAt = DateTime.UtcNow.AddDays(
+            int.Parse(_configuration["Jwt:RefreshTokenExpiresInDays"] ?? "7")
+        );
+
+        user.RefreshToken = refreshToken;
+        user.RefreshTokenExpiresAt = refreshTokenExpiresAt;
+
+        await _context.SaveChangesAsync();
+
+        var accessToken = _jwtTokenService.GenerateAccessToken(user, out var accessTokenExpiresAt);
 
         _logger.LogInformation("User {UserId} logged in ", user.Id);
 
         return ServiceResult<AuthResponse>.Ok(
             new AuthResponse
             {
-                AccessToken = token,
-                ExpiresAt = expiresAt,
+                AccessToken = accessToken,
+                AccessTokenExpiresAt = accessTokenExpiresAt,
+                RefreshToken = refreshToken,
+                RefreshTokenExpiresAt = refreshTokenExpiresAt,
                 User = MapToUserResponse(user)
             },
             "Đăng nhập thành công "
@@ -131,4 +172,51 @@ public class AuthService : IAuthService
         );
     }
 
+    public async Task<ServiceResult<AuthResponse>> RefreshTokenAsync(RefreshTokenRequest request)
+    {
+        var user = await _context.Users
+            .FirstOrDefaultAsync(u => u.RefreshToken == request.RefreshToken && u.Deleted == false);
+
+        if (user == null)
+        {
+            return ServiceResult<AuthResponse>.Fail(
+                "Refresh token không hợp lệ",
+                ServiceErrorType.BadRequest
+            );
+        }
+
+        if (user.RefreshTokenExpiresAt == null || user.RefreshTokenExpiresAt <= DateTime.UtcNow)
+        {
+            return ServiceResult<AuthResponse>.Fail(
+                "Refresh token đã hết hạn",
+                ServiceErrorType.BadRequest
+            );
+        }
+
+        var newRefreshToken = _jwtTokenService.GenerateRefreshToken();
+
+        var newRefreshTokenExpiresAt = DateTime.UtcNow.AddDays(
+            int.Parse(_configuration["Jwt:RefreshTokenExpiresInDays"] ?? "7")
+        );
+
+        user.RefreshToken = newRefreshToken;
+        user.RefreshTokenExpiresAt = newRefreshTokenExpiresAt;
+
+        await _context.SaveChangesAsync();
+
+        var accessToken = _jwtTokenService.GenerateAccessToken(user, out var accessTokenExpiresAt);
+
+        return ServiceResult<AuthResponse>.Ok(
+            new AuthResponse
+            {
+                AccessToken = accessToken,
+                AccessTokenExpiresAt = accessTokenExpiresAt,
+                RefreshToken = newRefreshToken,
+                RefreshTokenExpiresAt = newRefreshTokenExpiresAt,
+                User = MapToUserResponse(user)
+            },
+            "Làm mới token thành công"
+        );
+
+    }
 }

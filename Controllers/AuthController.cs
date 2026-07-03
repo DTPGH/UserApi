@@ -57,4 +57,11 @@ public class AuthController : ControllerBase
         return this.ToActionResult(result);
     }
 
+    [HttpPost("refresh-token")]
+    [AllowAnonymous]
+    public async Task<ActionResult<ApiResponse<AuthResponse>>> RefreshToken([FromBody] RefreshTokenRequest request)
+    {
+        var result = await _authService.RefreshTokenAsync(request);
+        return this.ToActionResult(result);
+    }
 }
