@@ -23,6 +23,11 @@ namespace UserApi.Data
         //     optionsBuilder.UseSqlServer(connectionString);
         // } 
         public DbSet<User> Users { get; set; }
+
+        public DbSet<Project> Projects { get; set; }
+
+        public DbSet<TaskItem> TaskItems { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -31,6 +36,24 @@ namespace UserApi.Data
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Email)
                 .IsUnique();
+
+            modelBuilder.Entity<Project>()
+                .HasQueryFilter(p => !p.Deleted);
+
+            modelBuilder.Entity<TaskItem>()
+                .HasQueryFilter(t => !t.Deleted);
+
+            modelBuilder.Entity<Project>()
+                .HasOne(p => p.Owner)
+                .WithMany(u => u.Projects)
+                .HasForeignKey(p => p.OwnerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<TaskItem>()
+                .HasOne(t => t.Project)
+                .WithMany(p => p.Tasks)
+                .HasForeignKey(t => t.ProjectId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             UserSeedData.Seed(modelBuilder);
         }

@@ -50,4 +50,6 @@ public class User : BaseEntity
     public string? RefreshToken { get; set; }
     public DateTime? RefreshTokenExpiresAt { get; set; }
 
+    public ICollection<Project> Projects { get; set; } = new List<Project>();
+
 }
