@@ -31,6 +31,15 @@ public static class ControllerExtensions
                     }
                 ),
 
+                ServiceErrorType.Forbidden => controller.StatusCode(
+                    StatusCodes.Status403Forbidden,
+                    new ApiResponse<T>
+                    {
+                        StatusCode = StatusCodes.Status403Forbidden,
+                        Message = result.Message
+                    }
+                ),
+
                 _ => controller.BadRequest(
                     new ApiResponse<T>
                     {
