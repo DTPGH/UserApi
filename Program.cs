@@ -79,6 +79,9 @@ builder.Services.AddDbContext<UserApi.Data.AppDbContext>(
 // DI UserService
 builder.Services.AddScoped<IUserService, UserService>();
 
+// DI ProjectService
+builder.Services.AddScoped<IProjectService, ProjectService>();
+
 // DI jwt authentication/authorization
 var jwtSetting = builder.Configuration.GetSection("Jwt");
 var secretKey = jwtSetting["SecretKey"]
