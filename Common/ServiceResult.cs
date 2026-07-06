@@ -34,5 +34,6 @@ public enum ServiceErrorType
     None,
     NotFound,
     Conflict,
-    BadRequest
+    BadRequest,
+    Forbidden
 }
