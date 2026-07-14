@@ -82,6 +82,9 @@ builder.Services.AddScoped<IUserService, UserService>();
 // DI ProjectService
 builder.Services.AddScoped<IProjectService, ProjectService>();
 
+// DI TaskItemService\
+builder.Services.AddScoped<ITaskItemService, TaskItemService>();
+
 // DI jwt authentication/authorization
 var jwtSetting = builder.Configuration.GetSection("Jwt");
 var secretKey = jwtSetting["SecretKey"]
