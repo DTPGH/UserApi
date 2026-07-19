@@ -15,4 +15,11 @@ public class CreateUserRequest
 
     [Range(1, 120, ErrorMessage = "Tuổi phải nằm trong khoảng 1 - 120  ")]
     public int Age { get; set; }
+
+    [Required]
+    [MinLength(5)]
+    public string Password { get; set; } = "";
+
+    [Required]
+    public string Role { get; set; } = "User";
 }

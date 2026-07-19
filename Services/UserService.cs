@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using UserApi.Common;
 using UserApi.Data;
@@ -29,8 +30,25 @@ public class UserService : IUserService
         };
     }
 
-    public async Task<ServiceResult<UserResponse>> GetUserByIdAsync(int id)
+    private static bool IsAdmin(string currentUserRole)
     {
+        return currentUserRole == "Admin";
+    }
+
+    private static bool CanAccessUser(int targetUserId, int currentUserId, string currentUserRole)
+    {
+        return IsAdmin(currentUserRole) == true || targetUserId == currentUserId;
+    }
+
+    public async Task<ServiceResult<UserResponse>> GetUserByIdAsync(int id, int currentUserId, string currentUserRole)
+    {
+        if (CanAccessUser(id, currentUserId, currentUserRole) == false)
+        {
+            return ServiceResult<UserResponse>.Fail(
+                "Bạn không có quyền xem thông tin người dùng này", ServiceErrorType.Forbidden
+            );
+        }
+
         var user = await _context.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == id && u.Deleted == false);
@@ -52,8 +70,16 @@ public class UserService : IUserService
         );
     }
 
-    public async Task<ServiceResult<PageResult<UserResponse>>> GetUsersAsync(UserQueryParameters parameters)
+    public async Task<ServiceResult<PageResult<UserResponse>>> GetUsersAsync(UserQueryParameters parameters, string currentUserRole)
     {
+        // kiểm tra người dùng có role là admin
+        if (IsAdmin(currentUserRole) == false)
+        {
+            return ServiceResult<PageResult<UserResponse>>.Fail(
+                "Bạn không có quyền xem danh sách người dùng", ServiceErrorType.Forbidden
+            );
+        }
+
         // b1: lấy tất cả records có trong bảng users với Deleted = false
         var query = _context.Users
             .AsNoTracking()
@@ -144,6 +170,9 @@ public class UserService : IUserService
             // Deleted = false
         };
 
+        var passwordHasher = new PasswordHasher<User>();
+        user.PasswordHash = passwordHasher.HashPassword(user, request.Password);
+
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
@@ -159,8 +188,15 @@ public class UserService : IUserService
         );
     }
 
-    public async Task<ServiceResult<UserResponse>> UpdateUserAsync(int id, UpdateUserRequest request)
+    public async Task<ServiceResult<UserResponse>> UpdateUserAsync(int id, UpdateUserRequest request, int currentUserId, string currentUserRole)
     {
+        if (CanAccessUser(id, currentUserId, currentUserRole) == false)
+        {
+            return ServiceResult<UserResponse>.Fail(
+                "Bạn không có quyền cập nhật người dùng này", ServiceErrorType.Forbidden
+            );
+        }
+
         var user = await _context.Users
             .FirstOrDefaultAsync(u => u.Id == id && u.Deleted == false);
 
@@ -208,15 +244,22 @@ public class UserService : IUserService
             "Cập nhật user thành công"
         );
     }
-    public async Task<ServiceResult<object>> SoftDeleteUserAsync(int id)
+
+    public async Task<ServiceResult<bool>> SoftDeleteUserAsync(int id, string currentUserRole)
     {
+        if (IsAdmin(currentUserRole) == false)
+        {
+            return ServiceResult<bool>.Fail(
+                "Bạn không có quyền xóa người dùng", ServiceErrorType.Forbidden
+            );
+        }
         var user = await _context.Users
             .FirstOrDefaultAsync(u => u.Id == id && u.Deleted == false);
 
         if (user == null)
         {
             _logger.LogWarning("Update user rejected because user don't exist");
-            return ServiceResult<object>.Fail(
+            return ServiceResult<bool>.Fail(
                 $"Không tìm thấy user với id: {id}",
                 ServiceErrorType.NotFound
             );
@@ -228,9 +271,38 @@ public class UserService : IUserService
 
         _logger.LogInformation("Soft deleted user {UserId}", user.Id);
 
-        return ServiceResult<object>.Ok(
-            null!,
+        return ServiceResult<bool>.Ok(
+            true,
             "Xóa user thành công"
+        );
+    }
+
+    public async Task<ServiceResult<UserResponse>> UpdateUserRoleAsync(int id, UpdateUserRoleRequest request)
+    {
+        var allowedRoles = new[] { "User", "Admin" };
+        if (allowedRoles.Contains(request.Role) == false)
+        {
+            return ServiceResult<UserResponse>.Fail(
+                "Role không hợp lệ", ServiceErrorType.BadRequest
+            );
+        }
+
+        var user = await _context.Users
+            .FirstOrDefaultAsync(u => u.Id == id && u.Deleted == false);
+
+        if (user == null)
+        {
+            return ServiceResult<UserResponse>.Fail(
+                "Không tìm thấy người dùng", ServiceErrorType.NotFound
+            );
+        }
+
+        user.Role = request.Role;
+
+        await _context.SaveChangesAsync();
+
+        return ServiceResult<UserResponse>.Ok(
+            MapToUserResponse(user), "Cập nhật role người dùng thành công"
         );
     }
 }
