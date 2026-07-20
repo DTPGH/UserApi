@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -109,6 +110,51 @@ builder.Services
 
             ValidateLifetime = true,
             ClockSkew = TimeSpan.Zero
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnChallenge = async context =>
+            {
+                context.HandleResponse();
+
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                context.Response.ContentType = "application/json";
+
+                var response = new ApiResponse<object>
+                {
+                    StatusCode = StatusCodes.Status401Unauthorized,
+                    Message = "Bạn cần đăng nhập để sử dụng chức năng này.",
+                    Content = null
+                };
+
+                var json = JsonSerializer.Serialize(response, new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                });
+
+                await context.Response.WriteAsync(json);
+            },
+
+            OnForbidden = async context =>
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                context.Response.ContentType = "application/json";
+
+                var response = new ApiResponse<object>
+                {
+                    StatusCode = StatusCodes.Status403Forbidden,
+                    Message = "Bạn không có quyền thực hiện chức năng này.",
+                    Content = null
+                };
+
+                var json = JsonSerializer.Serialize(response, new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                });
+
+                await context.Response.WriteAsync(json);
+            }
         };
     });
 
