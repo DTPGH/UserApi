@@ -26,7 +26,8 @@ public class UserService : IUserService
             Name = user.Name,
             Email = user.Email,
             Description = user.Description,
-            Age = user.Age
+            Age = user.Age,
+            Role = user.Role
         };
     }
 
@@ -304,5 +305,38 @@ public class UserService : IUserService
         return ServiceResult<UserResponse>.Ok(
             MapToUserResponse(user), "Cập nhật role người dùng thành công"
         );
+    }
+
+    public async Task<ServiceResult<bool>> RestoreUserIsDeleted(int id, string currentUserRole)
+    {
+        if (IsAdmin(currentUserRole) == false)
+        {
+            return ServiceResult<bool>.Fail(
+                "Bạn không có quyền xóa người dùng", ServiceErrorType.Forbidden
+            );
+        }
+
+        var user = await _context.Users
+            .FirstOrDefaultAsync(u => u.Id == id && u.Deleted == true);
+
+        if (user == null)
+        {
+            _logger.LogWarning("Update user rejected because user don't exist");
+            return ServiceResult<bool>.Fail(
+                $"Không tìm thấy user với id: {id}",
+                ServiceErrorType.NotFound
+            );
+        }
+
+        user.Deleted = false;
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Restore deleted user {UserId}", user.Id);
+
+        return ServiceResult<bool>.Ok(
+            true,
+            "Khôi phục user bị xóa thành công"
+        );
+
     }
 }

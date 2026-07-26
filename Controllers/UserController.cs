@@ -153,5 +153,15 @@ namespace UserApi.Controllers
             var result = await _userService.UpdateUserRoleAsync(id, request);
             return this.ToActionResult(result);
         }
+
+        [HttpPatch("{id:int}/restore")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<ApiResponse<bool>>> RestoreUserDeleted(int id)
+        {
+            var currentUserRole = GetCurrentUserRole();
+            var result = await _userService.RestoreUserIsDeleted(id, currentUserRole);
+            return this.ToActionResult(result);
+        }
+
     }
 }

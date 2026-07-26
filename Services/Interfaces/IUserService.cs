@@ -13,5 +13,5 @@ public interface IUserService
     Task<ServiceResult<UserResponse>> UpdateUserAsync(int id, UpdateUserRequest request, int currentUserId, string currentUserRole);
     Task<ServiceResult<bool>> SoftDeleteUserAsync(int id, string currentUserRole);
     Task<ServiceResult<UserResponse>> UpdateUserRoleAsync(int id, UpdateUserRoleRequest request);
-
+    Task<ServiceResult<bool>> RestoreUserIsDeleted(int id, string currentUserRole);
 }
