@@ -166,6 +166,18 @@ builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 // DI AuthService
 builder.Services.AddScoped<IAuthService, AuthService>();
 
+// configure CORS allow frontend connect
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("BlazorClient", policy =>
+    {
+        policy
+            .WithOrigins("https://localhost:5295")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
 var app = builder.Build();
 
 // Global Exception Handling Middleware xử lý lỗi ngoài dự kiến như database lỗi,...-> trả mess lỗi chung chung cho client 
@@ -186,6 +198,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseCors("BlazorClient");
 
 app.UseAuthentication();
 app.UseAuthorization();
