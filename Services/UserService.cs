@@ -127,7 +127,8 @@ public class UserService : IUserService
                 Name = u.Name,
                 Email = u.Email,
                 Description = u.Description,
-                Age = u.Age
+                Age = u.Age,
+                Role = u.Role
             })
             .ToListAsync();
 
@@ -338,5 +339,32 @@ public class UserService : IUserService
             "Khôi phục user bị xóa thành công"
         );
 
+    }
+
+    public async Task<ServiceResult<List<UserResponse>>> GetDeletedUsersAsync(string currentUserRole)
+    {
+        if (IsAdmin(currentUserRole) == false)
+        {
+            return ServiceResult<List<UserResponse>>.Fail(
+            "Bạn không có quyền xem danh sách người dùng đã bị xóa.",
+            ServiceErrorType.Forbidden);
+        }
+
+        var users = await _context.Users
+            .AsNoTracking()
+            .Where(u => u.Deleted)
+            .OrderByDescending(u => u.Id)
+            .Select(u => new UserResponse
+            {
+                Id = u.Id,
+                Name = u.Name,
+                Email = u.Email,
+                Description = u.Description,
+                Age = u.Age,
+                Role = u.Role
+            })
+            .ToListAsync();
+
+        return ServiceResult<List<UserResponse>>.Ok(users, "Lấy danh sách người dùng đã bị xóa thành công.");
     }
 }

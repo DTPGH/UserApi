@@ -163,5 +163,15 @@ namespace UserApi.Controllers
             return this.ToActionResult(result);
         }
 
+        [HttpGet("deleted")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<ApiResponse<List<UserResponse>>>> GetDeletedUsers()
+        {
+            var currentUserRole = GetCurrentUserRole();
+
+            var result = await _userService.GetDeletedUsersAsync(currentUserRole);
+
+            return this.ToActionResult(result);
+        }
     }
 }
